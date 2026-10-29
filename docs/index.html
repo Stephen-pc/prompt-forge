@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Forge · 提示词锻造炉</title>
+<meta name="description" content="看到别人的 AI 作品想做同款？按维度拆解，拼出可复现的提示词。覆盖图像、视频、文案、网页代码、音乐。">
+<style>
+  :root {
+    --bg: #0b0f16;
+    --bg-soft: #11161f;
+    --panel: #151b26;
+    --line: #232b39;
+    --line-soft: #1b2230;
+    --text: #e8eef7;
+    --dim: #8a97ab;
+    --dim-2: #5f6b7d;
+    --accent: #5eb0ff;
+    --accent-2: #a78bfa;
+    --warn: #f0b429;
+    --ok: #4ade80;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    border-bottom: 1px solid var(--line-soft);
+    background: linear-gradient(180deg, #101724 0%, var(--bg) 100%);
+    padding: 30px 0 24px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    flex: 0 0 auto;
+  }
+
+  h1 {
+    font-size: 21px;
+    margin: 0;
+    letter-spacing: -0.3px;
+    font-weight: 650;
+  }
+
+  h1 span {
+    background: linear-gradient(100deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .tag {
+    font-size: 11px;
+    color: var(--dim);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 9px;
+    letter-spacing: 0.3px;
+  }
+
+  .sub {
+    color: var(--dim);
+    margin: 10px 0 0;
+    font-size: 13px;
+    max-width: 760px;
+  }
+
+  .sub b { color: #c3cede; font-weight: 600; }
+
+  /* ---------- tabs ---------- */
+  nav.tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 22px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  nav.tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--dim);
+    padding: 7px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    transition: all .16s ease;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tab:hover { color: var(--text); border-color: #33405a; }
+
+  .tab.on {
+    background: linear-gradient(135deg, rgba(94,176,255,.16), rgba(167,139,250,.14));
+    border-color: #3d5680;
+    color: #dbe8fb;
+    box-shadow: 0 0 0 1px rgba(94,176,255,.12) inset;
+  }
+
+  .tab .k {
+    font-size: 11px;
+    color: var(--dim-2);
+    font-family: var(--mono);
+  }
+  .tab.on .k { color: #7f9dc4; }
+
+  /* ---------- layout ---------- */
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 22px;
+    padding: 24px 0 60px;
+    align-items: start;
+  }
+
+  @media (max-width: 940px) {
+    main { grid-template-columns: minmax(0, 1fr); }
+    .wrap { padding: 0 16px; }
+  }
+
+  @media (min-width: 941px) {
+    .out-panel {
+      position: sticky;
+      top: 16px;
+    }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--bg-soft);
+    flex-wrap: wrap;
+  }
+
+  .panel-head h2 {
+    font-size: 13px;
+    margin: 0;
+    font-weight: 600;
+    color: #c8d4e4;
+    letter-spacing: .2px;
+  }
+
+  .panel-head .hint {
+    font-size: 11.5px;
+    color: var(--dim-2);
+  }
+
+  /* ---------- form ---------- */
+  .fields {
+    padding: 6px 16px 16px;
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+  }
+
+  @media (max-width: 940px) {
+    .fields { max-height: none; }
+  }
+
+  .fields::-webkit-scrollbar { width: 8px; }
+  .fields::-webkit-scrollbar-thumb { background: #263041; border-radius: 4px; }
+  .fields::-webkit-scrollbar-track { background: transparent; }
+
+  .field {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .field:last-child { border-bottom: none; }
+
+  .field-top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+  }
+
+  .field label {
+    font-size: 12.5px;
+    color: #b9c6d8;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .field .idx {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--dim-2);
+    min-width: 14px;
+  }
+
+  .field .must {
+    font-size: 10px;
+    color: var(--warn);
+    border: 1px solid rgba(240,180,41,.35);
+    border-radius: 4px;
+    padding: 0 5px;
+    line-height: 15px;
+    background: rgba(240,180,41,.07);
+  }
+
+  .field .tip {
+    font-size: 11.5px;
+    color: var(--dim-2);
+    margin-left: auto;
+    text-align: right;
+    max-width: 60%;
+  }
+
+  @media (max-width: 560px) {
+    .field .tip {
+      max-width: 100%;
+      width: 100%;
+      text-align: left;
+      margin-left: 0;
+      margin-top: 2px;
+    }
+    .field .must { order: 3; }
+    h1 { font-size: 19px; }
+    .sub { font-size: 12.5px; }
+    pre.out { font-size: 12px; }
+  }
+
+  .field textarea {
+    width: 100%;
+    background: #0e131b;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: var(--text);
+    padding: 8px 10px;
+    font-size: 12.5px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 34px;
+    outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+
+  .field textarea:focus {
+    border-color: #3a5a85;
+    box-shadow: 0 0 0 3px rgba(94,176,255,.09);
+  }
+
+  .field textarea::placeholder { color: #4a5464; }
+
+  .field textarea.filled { border-color: #2c3a4e; }
+
+  /* ---------- output ---------- */
+  .out-body { padding: 16px; }
+
+  .meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 11.5px;
+    color: var(--dim);
+  }
+
+  .bar {
+    flex: 1;
+    height: 4px;
+    background: #1e2635;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width .3s ease;
+  }
+
+  .warnbox {
+    display: none;
+    font-size: 11.5px;
+    color: var(--warn);
+    background: rgba(240,180,41,.07);
+    border: 1px solid rgba(240,180,41,.22);
+    border-radius: 7px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+    line-height: 1.6;
+  }
+  .warnbox.show { display: block; }
+
+  pre.out {
+    margin: 0;
+    background: #0a0e14;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #cfe0f5;
+    min-height: 190px;
+    max-height: 46vh;
+    overflow-y: auto;
+  }
+
+  pre.out::-webkit-scrollbar { width: 8px; }
+  pre.out::-webkit-scrollbar-thumb { background: #263041; border-radius: 4px; }
+
+  pre.out .ph { color: #4d5869; font-style: italic; }
+
+  .neg-label {
+    font-size: 11px;
+    color: var(--dim-2);
+    margin: 14px 0 5px;
+    letter-spacing: .3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  pre.neg {
+    margin: 0;
+    background: #130f14;
+    border: 1px solid #2b2130;
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #b9a8c9;
+  }
+
+  .out-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  button.btn {
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: #1a2130;
+    color: #c5d2e4;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+
+  button.btn:hover { background: #212a3b; border-color: #33405a; }
+
+  button.btn.primary {
+    background: linear-gradient(135deg, #2f6fb5, #4b52b8);
+    border-color: #4a6fa8;
+    color: #f2f7ff;
+    font-weight: 600;
+  }
+
+  button.btn.primary:hover { filter: brightness(1.12); }
+
+  button.btn.ghost { background: transparent; color: var(--dim); }
+  button.btn.ghost:hover { color: var(--text); }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--line-soft);
+    padding: 22px 0 40px;
+    color: var(--dim-2);
+    font-size: 12px;
+  }
+
+  footer .row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: #1a2130;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #b9c6d8;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">🔥</div>
+      <h1>Prompt <span>Forge</span></h1>
+      <span class="tag">提示词锻造炉</span>
+    </div>
+    <p class="sub">
+      看到别人的 AI 作品想做同款，却拿不到提示词？<b>按维度拆，别按整体猜。</b>
+      左边逐项填写，右边实时拼出可直接粘贴的提示词。填不出来的格子，就是你需要回去再看一眼的地方。
+    </p>
+    <nav class="tabs" id="tabs"></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel">
+    <div class="panel-head">
+      <h2 id="formTitle">拆解维度</h2>
+      <span class="hint">带 <span style="color:var(--warn)">必填</span> 的最影响结果</span>
+    </div>
+    <div class="fields" id="fields"></div>
+  </section>
+
+  <section class="panel out-panel">
+    <div class="panel-head">
+      <h2>提示词</h2>
+      <span class="hint" id="modeHint"></span>
+    </div>
+    <div class="out-body">
+      <div class="meter">
+        <span id="meterText">关键维度 0/0</span>
+        <span class="bar"><i id="barFill"></i></span>
+      </div>
+      <div class="warnbox" id="warn"></div>
+      <pre class="out" id="out"></pre>
+      <div id="negWrap" style="display:none">
+        <div class="neg-label">负向提示词 · NEGATIVE</div>
+        <pre class="neg" id="neg"></pre>
+      </div>
+      <div class="out-actions">
+        <button class="btn primary" id="copyBtn">复制提示词</button>
+        <button class="btn" id="sampleBtn">填入示例</button>
+        <button class="btn ghost" id="clearBtn">清空</button>
+        <button class="btn ghost" id="modeBtn">切换写法</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap row">
+    <span>方法论：四步逆向法（拆 → 归 → 译 → 装） · 提示词是描述，不是许愿</span>
+    <span>开源 · MIT · <a href="https://github.com/Stephen-pc/prompt-forge" target="_blank" rel="noopener">GitHub</a> · 也有 DeepSeek Harness 插件版</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ============================================================
+  // 品类定义
+  // ============================================================
+
+  var CATALOG = {
+    image: {
+      label: "图像",
+      key: "IMG",
+      title: "图像 · 八维拆解",
+      hint: "一段式适合 MJ / 即梦 · 堆叠式适合 SD / Flux",
+      modes: ["一段式", "堆叠式"],
+      dims: [
+        { k: "subject", label: "主体", tip: "年龄/发型/服装/材质", must: true,
+          ph: "25岁东亚女性，银灰短发，磨旧深灰皮夹克，右肩挂褪色橙色背带" },
+        { k: "action", label: "动作", tip: "姿态/手势/视线/表情",
+          ph: "侧身回望，单手插袋，下巴微抬，视线越过镜头" },
+        { k: "scene", label: "场景", tip: "空间/时间/天气/背景元素",
+          ph: "雨夜窄巷，积水倒映霓虹，远处卷帘门半开，薄雾" },
+        { k: "style", label: "风格", tip: "媒介/流派/参考",
+          ph: "写实摄影，赛博朋克，电影剧照质感" },
+        { k: "light", label: "光线", tip: "方向/软硬/色温", must: true,
+          ph: "单侧霓虹主光自右后方打来，冷蓝与洋红对冲，环境光极暗" },
+        { k: "color", label: "色彩", tip: "主色/辅色/饱和度",
+          ph: "低饱和青蓝为主，洋红点缀，高对比暗调" },
+        { k: "lens", label: "镜头", tip: "焦段/机位/构图/景深", must: true,
+          ph: "35mm 定焦，略低机位，三分法，浅景深，背景虚化成色块" },
+        { k: "texture", label: "质感", tip: "颗粒/材质/渲染/后期",
+          ph: "胶片颗粒，轻微暗角，高光柔溢，湿润皮肤反光" }
+      ],
+      negative: "多余的手指, 畸形的手, 肢体错位, 面部扭曲, 文字, 水印, 签名, 低分辨率, 模糊, 过曝, 塑料感皮肤, 重复元素",
+      sample: {
+        subject: "25岁东亚女性，银灰短发，磨旧深灰皮夹克",
+        action: "侧身回望，单手插袋，视线越过镜头",
+        scene: "雨夜窄巷，积水倒映霓虹，薄雾弥漫",
+        style: "写实摄影，赛博朋克，电影剧照质感",
+        light: "单侧霓虹主光自右后方打来，冷蓝与洋红对冲，环境光极暗",
+        color: "低饱和青蓝为主，洋红点缀，高对比暗调",
+        lens: "35mm 定焦，略低机位，三分法，浅景深",
+        texture: "胶片颗粒，轻微暗角，高光柔溢"
+      }
+    },
+
+    video: {
+      label: "视频",
+      key: "VID",
+      title: "视频 · 十维拆解",
+      hint: "关键：写「怎么动」，不是「长什么样」",
+      modes: ["分段式", "一句话"],
+      dims: [
+        { k: "subject", label: "主体", tip: "外观特征", must: true,
+          ph: "穿米色风衣的年轻女性，短发被风吹乱" },
+        { k: "action", label: "动作", tip: "起始→过程→结束", must: true,
+          ph: "起初低头站着，随后缓缓抬头看向远处，发丝被风掀起" },
+        { k: "camera", label: "镜头运动", tip: "推/拉/摇/移/环绕/固定", must: true,
+          ph: "镜头缓慢推近，从全景到中景，轻微手持感" },
+        { k: "pace", label: "节奏", tip: "慢动作/正常/延时",
+          ph: "慢动作，约 0.5 倍速" },
+        { k: "scene", label: "场景", tip: "环境与背景",
+          ph: "阴天的空旷码头，远处有废弃吊机，地面湿滑反光" },
+        { k: "light", label: "光线", tip: "光源与变化",
+          ph: "阴天散射光，云层缝隙偶有冷光透下，亮度缓慢变化" },
+        { k: "style", label: "风格", tip: "实拍/动画/胶片",
+          ph: "实拍电影感，浅灰冷调，胶片颗粒" },
+        { k: "color", label: "色彩", tip: "色调倾向",
+          ph: "低饱和灰蓝，唯一暖色是她风衣的米色" },
+        { k: "shot", label: "景别", tip: "远/全/中/近/特",
+          ph: "全景转中景" },
+        { k: "duration", label: "时长与画幅", tip: "秒数 + 比例",
+          ph: "5 秒，16:9" }
+      ],
+      negative: "画面抖动, 人物变形, 肢体扭曲, 面部崩坏, 闪烁, 重复帧, 文字, 水印, 低帧率",
+      sample: {
+        subject: "穿米色风衣的年轻女性，短发被风吹乱",
+        action: "起初低头站着，随后缓缓抬头看向远处，发丝被风掀起",
+        camera: "镜头缓慢推近，从全景到中景，轻微手持感",
+        pace: "慢动作，约 0.5 倍速",
+        scene: "阴天的空旷码头，远处有废弃吊机，地面湿滑反光",
+        light: "阴天散射光，云层缝隙偶有冷光透下",
+        style: "实拍电影感，浅灰冷调，胶片颗粒",
+        color: "低饱和灰蓝，唯一暖色是风衣的米色",
+        shot: "全景转中景",
+        duration: "5 秒，16:9"
+      }
+    },
+
+    copy: {
+      label: "文案",
+      key: "TXT",
+      title: "文案 · 八维拆解",
+      hint: "漏了「平台」和「语气」，出来一定不像人写的",
+      modes: ["结构化", "自然语言"],
+      dims: [
+        { k: "platform", label: "平台", tip: "决定篇幅与语气", must: true,
+          ph: "小红书" },
+        { k: "audience", label: "受众", tip: "年龄/身份/痛点", must: true,
+          ph: "22-28 岁刚工作一两年的女生，想攒钱但控制不住消费" },
+        { k: "topic", label: "主题与观点", tip: "一句话说清",
+          ph: "月薪八千也能存下钱，关键是先把「想买」和「需要」分开" },
+        { k: "hook", label: "钩子", tip: "反常识/身份代入/结果前置/痛点直击",
+          ph: "反常识：不是赚得少，是你把存钱顺序搞反了" },
+        { k: "structure", label: "结构", tip: "总分总/痛点-方案-证据/清单体/故事体",
+          ph: "痛点共鸣 → 我的做法（3条）→ 效果对比 → 轻收尾" },
+        { k: "tone", label: "语气", tip: "闺蜜/顾问/吐槽/治愈", must: true,
+          ph: "第一人称，像跟朋友聊天，允许自我怀疑，不完美人设" },
+        { k: "taboo", label: "禁忌与合规", tip: "不能说的词/不能承诺的效果",
+          ph: "不用「最」「绝对」等绝对化词；不承诺具体收益；不贬低他人" },
+        { k: "cta", label: "行动指令", tip: "看完做什么",
+          ph: "评论区说说你的第一个存钱目标" }
+      ],
+      negative: "",
+      sample: {
+        platform: "小红书",
+        audience: "22-28 岁刚工作一两年的女生，想攒钱但控制不住消费",
+        topic: "月薪八千也能存下钱，关键是先把「想买」和「需要」分开",
+        hook: "反常识：不是赚得少，是你把存钱顺序搞反了",
+        structure: "痛点共鸣 → 我的做法（3条）→ 效果对比 → 轻收尾",
+        tone: "第一人称，像跟朋友聊天，允许自我怀疑，不完美人设",
+        taboo: "不用绝对化词；不承诺具体收益",
+        cta: "评论区说说你的第一个存钱目标"
+      }
+    },
+
+    code: {
+      label: "网页 / 代码",
+      key: "DEV",
+      title: "代码 · 七维拆解",
+      hint: "代码提示词是约束，不是许愿。边界写清楚，返工少一半",
+      modes: ["结构化", "自然语言"],
+      dims: [
+        { k: "goal", label: "目标", tip: "做什么 / 给谁用 / 解决什么", must: true,
+          ph: "做一个把 CSV 转成 Markdown 表格的单页工具，给不装软件的同事用" },
+        { k: "stack", label: "技术栈", tip: "语言/框架/版本/依赖限制", must: true,
+          ph: "纯 HTML + CSS + 原生 JS，单文件，零外部依赖，不用 CDN" },
+        { k: "structure", label: "结构", tip: "文件划分与模块职责",
+          ph: "单个 index.html，内联 style 与 script" },
+        { k: "data", label: "数据", tip: "输入格式 / 输出格式 / 存储",
+          ph: "输入：粘贴或拖入 .csv（UTF-8）；输出：可复制的 Markdown；不持久化" },
+        { k: "flow", label: "交互流程", tip: "操作路径与状态变化",
+          ph: "选文件 → 预览前 5 行 → 点转换 → 显示结果 → 点复制" },
+        { k: "visual", label: "视觉规范", tip: "配色/字号/间距/响应式",
+          ph: "深色背景 #0b0f16，主色 #5eb0ff，正文 14px，最大宽度 960px，移动端单列" },
+        { k: "edge", label: "边界条件", tip: "错误处理/空状态/上限", must: true,
+          ph: "空输入禁用按钮；非 CSV 提示格式错误不弹 alert；超 2MB 拒绝并说明；复制失败降级为选中文本" }
+      ],
+      negative: "",
+      sample: {
+        goal: "做一个把 CSV 转成 Markdown 表格的单页工具，给不装软件的同事用",
+        stack: "纯 HTML + CSS + 原生 JS，单文件，零外部依赖，不用 CDN",
+        structure: "单个 index.html，内联 style 与 script",
+        data: "输入：粘贴或拖入 .csv（UTF-8）；输出：可复制的 Markdown；不持久化",
+        flow: "选文件 → 预览前 5 行 → 点转换 → 显示结果 → 点复制",
+        visual: "深色背景 #0b0f16，主色 #5eb0ff，正文 14px，移动端单列",
+        edge: "空输入禁用按钮；格式错误给文字提示；超 2MB 拒绝；复制失败降级为选中文本"
+      }
+    },
+
+    music: {
+      label: "音乐",
+      key: "AUD",
+      title: "音乐 · 七维拆解",
+      hint: "写子流派，别写大类。写「City Pop」而不是「流行」",
+      modes: ["结构化", "自然语言"],
+      dims: [
+        { k: "genre", label: "流派", tip: "具体子流派，越细越好", must: true,
+          ph: "City Pop，融合 80 年代日本都市流行与轻爵士" },
+        { k: "mood", label: "情绪", tip: "写弧线，不写单点词", must: true,
+          ph: "从克制的怀念，到副歌的明亮释然" },
+        { k: "instrument", label: "编制", tip: "主奏/节奏组/点缀音色",
+          ph: "电钢琴主奏，指弹电吉他分解，轻鼓刷，弦乐 pad 铺底" },
+        { k: "bpm", label: "BPM 与律动", tip: "数字 + 律动感", must: true,
+          ph: "92 BPM，半拍摇摆，贝斯走切分" },
+        { k: "structure", label: "结构", tip: "前奏-主歌-副歌-桥段-尾奏",
+          ph: "Intro 8s 电钢琴独奏 → Verse 克制 → Pre-Chorus 加鼓 → Chorus 全编制 → Bridge 减编制 → Final Chorus 加弦乐 → Outro 淡出" },
+        { k: "vocal", label: "人声", tip: "性别/音域/唱法/和声",
+          ph: "女声，中音区，气声为主，副歌转真声，叠三度和声" },
+        { k: "mixing", label: "混音质感", tip: "年代感/空间/饱和",
+          ph: "磁带饱和，80 年代门限混响，人声前置，宽立体声合成器" }
+      ],
+      negative: "",
+      sample: {
+        genre: "City Pop，融合 80 年代日本都市流行与轻爵士",
+        mood: "从克制的怀念，到副歌的明亮释然",
+        instrument: "电钢琴主奏，指弹电吉他分解，轻鼓刷，弦乐 pad 铺底",
+        bpm: "92 BPM，半拍摇摆，贝斯走切分",
+        structure: "Intro 8s 电钢琴独奏 → Verse 克制 → Pre-Chorus 加鼓 → Chorus 全编制 → Bridge 减编制 → Final Chorus 加弦乐 → Outro 淡出",
+        vocal: "女声，中音区，气声为主，副歌转真声，叠三度和声",
+        mixing: "磁带饱和，80 年代门限混响，人声前置"
+      }
+    }
+  };
+
+  var ORDER = ["image", "video", "copy", "code", "music"];
+
+  // ============================================================
+  // 组装逻辑
+  // ============================================================
+
+  function cn(parts, sep) {
+    return parts.filter(function (p) { return p && String(p).trim(); }).join(sep || "，");
+  }
+
+  function clean(v) {
+    return (v || "").trim();
+  }
+
+  function buildImage(v, mode) {
+    var seq = ["subject", "action", "scene", "style", "light", "color", "lens", "texture"];
+
+    if (mode === 1) {
+      var parts = seq.map(function (k) { return clean(v[k]); }).filter(Boolean);
+      return parts.length ? parts.join(", ") : "";
+    }
+
+    var head = cn([clean(v.subject), clean(v.action)]);
+    var g1 = cn([head, clean(v.scene) ? "在" + clean(v.scene) : ""]);
+    var groups = [
+      g1,
+      clean(v.style),
+      cn([clean(v.light), clean(v.color)]),
+      clean(v.lens),
+      clean(v.texture)
+    ].filter(Boolean);
+
+    return groups.join("；");
+  }
+
+  function buildVideo(v, mode) {
+    if (mode === 1) {
+      return cn([
+        clean(v.subject),
+        clean(v.action),
+        clean(v.camera),
+        clean(v.pace),
+        clean(v.scene),
+        clean(v.light),
+        clean(v.style),
+        clean(v.color),
+        clean(v.shot),
+        clean(v.duration)
+      ]);
+    }
+
+    var rows = [
+      ["主体", v.subject], ["动作", v.action], ["镜头", v.camera],
+      ["节奏", v.pace], ["场景", v.scene], ["光线", v.light],
+      ["风格", v.style], ["色彩", v.color], ["景别", v.shot],
+      ["时长画幅", v.duration]
+    ];
+    return rows
+      .filter(function (r) { return clean(r[1]); })
+      .map(function (r) { return "【" + r[0] + "】" + clean(r[1]); })
+      .join("\n");
+  }
+
+  var PREAMBLES = {
+    copy: "请按以下设定写文案，严格遵守每一条约束，不要自行添加未要求的段落：",
+    code: "请按以下规格实现，严格遵守每一条约束；需求有歧义时先列出假设再动手：",
+    music: "请按以下规格生成音乐，严格遵守每一条约束："
+  };
+
+  function buildStructured(v, dims, mode, catId) {
+    if (mode === 1) {
+      var parts = dims
+        .map(function (d) { return clean(v[d.k]); })
+        .filter(Boolean);
+      return parts.join("；");
+    }
+
+    var lines = dims
+      .filter(function (d) { return clean(v[d.k]); })
+      .map(function (d) { return "【" + d.label + "】" + clean(v[d.k]); });
+
+    if (!lines.length) return "";
+
+    var pre = PREAMBLES[catId];
+    return (pre ? pre + "\n\n" : "") + lines.join("\n");
+  }
+
+  function assemble(catId, v, mode) {
+    if (catId === "image") return buildImage(v, mode);
+    if (catId === "video") return buildVideo(v, mode);
+    return buildStructured(v, CATALOG[catId].dims, mode, catId);
+  }
+
+  // ============================================================
+  // 状态与渲染
+  // ============================================================
+
+  var state = { cat: "image", mode: 0, values: {} };
+  ORDER.forEach(function (id) { state.values[id] = {}; });
+
+  var $tabs = document.getElementById("tabs");
+  var $fields = document.getElementById("fields");
+  var $out = document.getElementById("out");
+  var $neg = document.getElementById("neg");
+  var $negWrap = document.getElementById("negWrap");
+  var $warn = document.getElementById("warn");
+  var $bar = document.getElementById("barFill");
+  var $meter = document.getElementById("meterText");
+  var $formTitle = document.getElementById("formTitle");
+  var $modeHint = document.getElementById("modeHint");
+  var $modeBtn = document.getElementById("modeBtn");
+  var $copyBtn = document.getElementById("copyBtn");
+
+  function renderTabs() {
+    $tabs.innerHTML = "";
+    ORDER.forEach(function (id) {
+      var c = CATALOG[id];
+      var b = document.createElement("button");
+      b.className = "tab" + (state.cat === id ? " on" : "");
+      b.innerHTML = '<span class="k">' + c.key + "</span>" + c.label;
+      b.onclick = function () {
+        state.cat = id;
+        state.mode = 0;
+        renderTabs();
+        renderForm();
+        update();
+      };
+      $tabs.appendChild(b);
+    });
+  }
+
+  function renderForm() {
+    var cat = CATALOG[state.cat];
+    var vals = state.values[state.cat];
+
+    $formTitle.textContent = cat.title;
+    $modeHint.textContent = cat.hint;
+    $modeBtn.textContent = "写法：" + cat.modes[state.mode];
+    $fields.innerHTML = "";
+
+    cat.dims.forEach(function (d, i) {
+      var wrap = document.createElement("div");
+      wrap.className = "field";
+
+      var top = document.createElement("div");
+      top.className = "field-top";
+
+      var idx = document.createElement("span");
+      idx.className = "idx";
+      idx.textContent = String(i + 1).padStart(2, "0");
+
+      var lab = document.createElement("label");
+      lab.textContent = d.label;
+      lab.setAttribute("for", "f_" + d.k);
+
+      top.appendChild(idx);
+      top.appendChild(lab);
+
+      if (d.must) {
+        var m = document.createElement("span");
+        m.className = "must";
+        m.textContent = "必填";
+        top.appendChild(m);
+      }
+
+      var tip = document.createElement("span");
+      tip.className = "tip";
+      tip.textContent = d.tip;
+      top.appendChild(tip);
+
+      var ta = document.createElement("textarea");
+      ta.id = "f_" + d.k;
+      ta.rows = 2;
+      ta.placeholder = d.ph || "";
+      ta.value = vals[d.k] || "";
+      if (ta.value) ta.classList.add("filled");
+
+      ta.addEventListener("input", function () {
+        vals[d.k] = ta.value;
+        ta.classList.toggle("filled", !!ta.value.trim());
+        update();
+      });
+
+      wrap.appendChild(top);
+      wrap.appendChild(ta);
+      $fields.appendChild(wrap);
+    });
+  }
+
+  function update() {
+    var cat = CATALOG[state.cat];
+    var vals = state.values[state.cat];
+
+    var text = assemble(state.cat, vals, state.mode);
+
+    if (text.trim()) {
+      $out.textContent = text;
+      $out.classList.remove("empty");
+    } else {
+      $out.innerHTML = '<span class="ph">← 左边填任意一项，这里就会实时拼出提示词。\n\n不知道怎么填？点下方「填入示例」看一份完整拆解。\n\n提示：填不出来的格子，正是你需要回去再看一眼作品的地方。</span>';
+    }
+
+    // 负向
+    if (cat.negative && text.trim()) {
+      $negWrap.style.display = "block";
+      $neg.textContent = cat.negative;
+    } else {
+      $negWrap.style.display = "none";
+    }
+
+    // 必填检查
+    var musts = cat.dims.filter(function (d) { return d.must; });
+    var done = musts.filter(function (d) { return clean(vals[d.k]); });
+    var missing = musts.filter(function (d) { return !clean(vals[d.k]); });
+
+    $meter.textContent = "关键维度 " + done.length + "/" + musts.length;
+    $bar.style.width = (musts.length ? (done.length / musts.length) * 100 : 0) + "%";
+
+    if (missing.length && text.trim()) {
+      $warn.classList.add("show");
+      $warn.textContent = "还缺关键维度：" + missing.map(function (d) { return d.label; }).join("、") +
+        "。这几项不填，模型会自己猜，猜出来的通常不是你想要的。";
+    } else {
+      $warn.classList.remove("show");
+    }
+  }
+
+  // ---------- 按钮 ----------
+
+  $copyBtn.onclick = function () {
+    var cat = CATALOG[state.cat];
+    var vals = state.values[state.cat];
+    var main = assemble(state.cat, vals, state.mode);
+    if (!main.trim()) return;
+
+    var full = main;
+    if (cat.negative) full += "\n\n[负向] " + cat.negative;
+
+    function done() {
+      $copyBtn.textContent = "已复制 ✓";
+      setTimeout(function () { $copyBtn.textContent = "复制提示词"; }, 1500);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(full).then(done, fallback);
+    } else {
+      fallback();
+    }
+
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = full;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (e) {
+        $copyBtn.textContent = "请手动选中复制";
+        setTimeout(function () { $copyBtn.textContent = "复制提示词"; }, 2000);
+      }
+      document.body.removeChild(ta);
+    }
+  };
+
+  document.getElementById("sampleBtn").onclick = function () {
+    var cat = CATALOG[state.cat];
+    state.values[state.cat] = Object.assign({}, cat.sample);
+    renderForm();
+    update();
+  };
+
+  document.getElementById("clearBtn").onclick = function () {
+    state.values[state.cat] = {};
+    renderForm();
+    update();
+  };
+
+  $modeBtn.onclick = function () {
+    var cat = CATALOG[state.cat];
+    state.mode = (state.mode + 1) % cat.modes.length;
+    $modeBtn.textContent = "写法：" + cat.modes[state.mode];
+    update();
+  };
+
+  // ---------- 快捷键 ----------
+
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      $copyBtn.click();
+    }
+  });
+
+  // ---------- 启动 ----------
+
+  renderTabs();
+  renderForm();
+  update();
+})();
+</script>
+</body>
+</html>

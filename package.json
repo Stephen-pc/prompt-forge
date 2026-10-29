@@ -1,0 +1,35 @@
+{
+  "name": "dsh-prompt-forge",
+  "version": "0.1.0",
+  "description": "把「我想要这种效果」变成可复现的提示词。逆向拆解 AI 作品，覆盖图像 / 视频 / 文案 / 网页代码 / 音乐五个品类。",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "skills",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "prompt",
+    "prompt-engineering",
+    "skill"
+  ],
+  "license": "MIT",
+  "author": "Stephen-pc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stephen-pc/prompt-forge.git"
+  },
+  "homepage": "https://github.com/Stephen-pc/prompt-forge",
+  "engines": {
+    "dsh": ">=0.1.0 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
