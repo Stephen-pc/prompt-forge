@@ -1,5 +1,5 @@
 {
-  "name": "dsh-prompt-forge",
+  "name": "dsh-plugin-prompt-forge",
   "version": "0.1.0",
   "description": "把「我想要这种效果」变成可复现的提示词。逆向拆解 AI 作品，覆盖图像 / 视频 / 文案 / 网页代码 / 音乐五个品类。",
   "type": "module",

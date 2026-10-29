@@ -1,8 +1,8 @@
-# dsh-prompt-forge 组合包配置层
+# dsh-plugin-prompt-forge 组合包配置层
 #
 # 本文件是一个 patch 条目数组，由 `dsh plugin add` 安装后追加到 profile 的层序列中。
 # 插件行按包名引用，Node 的模块解析会定位到已安装的代码。
 
 - insert:
     - id: prompt-forge
-      name: dsh-prompt-forge
+      name: dsh-plugin-prompt-forge

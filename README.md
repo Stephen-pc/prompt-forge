@@ -75,7 +75,7 @@ Prompt Forge 解决的就是这件事：把「很酷」「高级感」「氛围�
 dsh plugin --profile web add github:Stephen-pc/prompt-forge
 
 # 或从 npm 安装（发布后可用）
-dsh plugin --profile web add dsh-prompt-forge
+dsh plugin --profile web add dsh-plugin-prompt-forge
 ```
 
 装完确认一下配置里出现了这一层：
