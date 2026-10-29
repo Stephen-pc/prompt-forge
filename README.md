@@ -163,6 +163,32 @@ node scripts/push-via-api.mjs             # 用 GitHub API 提交
 **能不能自动从图片反推提示词？**
 那是另一个问题（视觉反推），需要多模态模型。本项目的定位是**给你一套拆解框架和术语库**，让你自己看得懂、写得对。工具负责防漏和组装，判断还是得你来。
 
+**安装时卡住、或报 `CONNECT tunnel failed 502` 怎么办？**
+部分网络环境下 `github.com:443` 会被阻断，但 `api.github.com` 和 SSH 通道通常是通的。先确认一下哪个通道能用：
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" https://api.github.com     # 200 说明 API 通
+ssh -T git@github.com                                            # 能握手说明 SSH 通
+```
+
+如果只有 SSH 通，把 `github.com` 指向 `ssh.github.com:443`（该端口一般不被拦），然后改用 SSH 地址克隆：
+
+```
+# ~/.ssh/config
+Host github.com
+  HostName ssh.github.com
+  Port 443
+  User git
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+```bash
+git clone git@github.com:Stephen-pc/prompt-forge.git
+dsh plugin --profile web add ./prompt-forge
+```
+
+本仓库就是在这个环境下开发并发布的，`scripts/push-via-api.mjs` 是当时的兜底方案，留着以备不时之需。
+
 ---
 
 ## 参与
