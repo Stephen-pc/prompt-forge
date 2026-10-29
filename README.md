@@ -128,11 +128,24 @@ prompt-forge/
 │   ├── index.html        # 网页版工具（GitHub Pages 入口）
 │   ├── method.md         # 完整方法论
 │   └── screenshot.png
+├── scripts/
+│   └── push-via-api.mjs  # git push 不通时的发布兜底
 ├── LICENSE
 └── README.md
 ```
 
 仓库根目录本身就是 DSH 插件包，所以 `dsh plugin add github:...` 可以直接装，不需要额外的子目录路径。
+
+### 附带的发布兜底脚本
+
+如果你的网络环境下 `git push` 报 `CONNECT tunnel failed` 或 `Failed to connect to github.com:443`，但 `gh api user` 能正常返回，说明只是 git 通道被挡，API 通道是通的：
+
+```bash
+node scripts/push-via-api.mjs --dry-run   # 先看会传哪些文件
+node scripts/push-via-api.mjs             # 用 GitHub API 提交
+```
+
+它以「本地工作区覆盖远程」的方式创建 commit，所以 commit 历史会和本地 git 不同步。网络正常时优先用 `git push`。
 
 ---
 
