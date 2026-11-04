@@ -84,8 +84,8 @@ jobs:
       - name: 打包后按安装形态自检
         run: |
           set -e
+          mkdir -p /tmp/pkg /tmp/sim
           npm pack --pack-destination /tmp/pkg
-          mkdir -p /tmp/sim
           tar xzf /tmp/pkg/*.tgz -C /tmp/sim
           cd /tmp/sim/package
           test -f index.js
