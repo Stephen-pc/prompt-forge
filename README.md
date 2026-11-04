@@ -134,6 +134,8 @@ prompt-forge/
 │   └── screenshot.png
 ├── scripts/
 │   └── push-via-api.mjs  # git push 不通时的发布兜底
+├── test/
+│   └── install.test.mjs  # 安装逻辑的回归测试（node:test，零依赖）
 ├── LICENSE
 └── README.md
 ```
@@ -159,7 +161,10 @@ node scripts/push-via-api.mjs             # 用 GitHub API 提交
 模型有随机性，同一段提示词跑十次也不完全一样。这套方法能保证「同风格、同质感、同结构」，但做不到像素级一致。任何承诺能完全复刻的说法都不诚实。
 
 **为什么插件要往 `~/.dsh/skills/` 写文件？**
-那是 DSH 官方文档列明的默认 skill 扫描根目录之一（rank 400），harness 会监视它并在变化时自动刷新，不需要任何内部 API。这是最稳的分发方式。插件只复制自己 `skills/` 下的目录，不会碰你手写的 skill。
+那是 DSH 官方文档列明的默认 skill 扫描根目录之一（rank 400），harness 会监视它并在变化时自动刷新，不需要任何内部 API。这是最稳的分发方式。
+
+**它会覆盖我自己改过的 skill 吗？**
+不会。插件用 `<dshHome>/.prompt-forge-manifest.json` 记账，只替换「账上记着是自己装的」那些目录。如果 `~/.dsh/skills/prompt-forge` 是你手写的、或者你改过，插件会跳过并在日志里说明，你的改动原样保留。确实想用插件版本覆盖，显式传 `force`。
 
 **填了这些维度，提示词会不会太长？**
 会长，但长不是问题，空才是问题。多数模型对 100–200 词的结构化描述处理得很好。真正的浪费是堆 `8K, ultra detailed, masterpiece` 这类无信息量的词。
@@ -192,6 +197,18 @@ dsh plugin --profile web add ./prompt-forge
 ```
 
 本仓库就是在这个环境下开发并发布的，`scripts/push-via-api.mjs` 是当时的兜底方案，留着以备不时之需。
+
+---
+
+## 测试
+
+```bash
+node --test
+```
+
+用 Node 内置的 `node:test`，不引任何第三方依赖——和「装完就能跑」是同一个原则。每个用例在独立的临时 `DSH_HOME` 里跑，跑完自清理。
+
+覆盖安装逻辑的五个契约：干净环境正常铺开、**不覆盖用户手写的同名 skill**、`force` 时才覆盖、同版本重复调用直接跳过、自己装过的目录允许随版本替换。
 
 ---
 

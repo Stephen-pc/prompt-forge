@@ -799,6 +799,44 @@
   var state = { cat: "image", mode: 0, values: {} };
   ORDER.forEach(function (id) { state.values[id] = {}; });
 
+  // ---------- 本地暂存 ----------
+  // 填满八个格子要几分钟，中途刷新一次就全没了——这是最容易被放弃的地方。
+  // 存在 localStorage，不上传任何东西；隐私模式或存储被禁用时静默跳过。
+  var STORE_KEY = "prompt-forge:v1";
+  var saveTimer = null;
+
+  function loadState() {
+    try {
+      var raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== "object") return;
+      ORDER.forEach(function (id) {
+        if (saved.values && saved.values[id] && typeof saved.values[id] === "object") {
+          state.values[id] = saved.values[id];
+        }
+      });
+      if (saved.cat && CATALOG[saved.cat]) state.cat = saved.cat;
+      if (typeof saved.mode === "number") state.mode = saved.mode;
+    } catch (e) {
+      /* 读不到就当没存过，不影响使用 */
+    }
+  }
+
+  function saveState() {
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    } catch (e) {
+      /* 配额满或被禁用：放弃暂存，但不打断输入 */
+    }
+  }
+
+  // 逐字输入时不必每敲一下就写一次
+  function scheduleSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveState, 400);
+  }
+
   var $tabs = document.getElementById("tabs");
   var $fields = document.getElementById("fields");
   var $out = document.getElementById("out");
@@ -898,7 +936,7 @@
       $out.textContent = text;
       $out.classList.remove("empty");
     } else {
-      $out.innerHTML = '<span class="ph">← 左边填任意一项，这里就会实时拼出提示词。\n\n不知道怎么填？点下方「填入示例」看一份完整拆解。\n\n提示：填不出来的格子，正是你需要回去再看一眼作品的地方。</span>';
+      $out.innerHTML = '<span class="ph">在上面任意填一项，这里就会实时拼出提示词。\n\n不知道怎么填？点下方「填入示例」看一份完整拆解。\n\n提示：填不出来的格子，正是你需要回去再看一眼作品的地方。</span>';
     }
 
     // 负向
@@ -924,6 +962,8 @@
     } else {
       $warn.classList.remove("show");
     }
+
+    scheduleSave();
   }
 
   // ---------- 按钮 ----------
@@ -994,6 +1034,7 @@
 
   // ---------- 启动 ----------
 
+  loadState();
   renderTabs();
   renderForm();
   update();

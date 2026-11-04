@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 测试 (Node ${{ matrix.node }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ["18", "20", "22"]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 安装逻辑要往磁盘写文件、删目录，三个平台的文件系统语义并不一样
+      # （大小写敏感、路径分隔符、rmSync 的 force 行为）。只在 Linux 上测等于没测。
+      - name: 回归测试
+        run: node --test
+
+  zero-dep:
+    name: 保证零依赖
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 这个插件的卖点是「装完就能跑」，不该出现 node_modules。
+      # 这条 CI 拦住任何悄悄引入第三方 import 的提交。
+      - name: 检查未引入第三方依赖
+        run: |
+          node - <<'JS'
+          const { readdirSync, readFileSync, statSync } = require('node:fs')
+          const { join } = require('node:path')
+
+          const BUILTIN = /^node:/
+          const bad = []
+
+          function walk(dir) {
+            for (const name of readdirSync(dir)) {
+              if (name === 'node_modules' || name === '.git') continue
+              const p = join(dir, name)
+              if (statSync(p).isDirectory()) { walk(p); continue }
+              if (!/\.(m?js)$/.test(name)) continue
+              const src = readFileSync(p, 'utf8')
+              for (const m of src.matchAll(/(?:^|\n)\s*import\s[^'"]*['"]([^'"]+)['"]/g)) {
+                if (!BUILTIN.test(m[1]) && !m[1].startsWith('.')) bad.push(`${p}: import ${m[1]}`)
+              }
+            }
+          }
+
+          walk('.')
+          if (bad.length) {
+            console.error('发现第三方依赖：')
+            bad.forEach((b) => console.error('  ' + b))
+            process.exit(1)
+          }
+          console.log('OK：只使用 node: 内置模块')
+          JS
+
+  package:
+    name: 打包形态自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 仓库里跑得通，不代表 npm 包跑得通：files 字段漏一个目录，
+      # 用户装完才发现 skills/ 不存在——这种错只有用户会撞上。
+      - name: 打包后按安装形态自检
+        run: |
+          set -e
+          npm pack --pack-destination /tmp/pkg
+          mkdir -p /tmp/sim
+          tar xzf /tmp/pkg/*.tgz -C /tmp/sim
+          cd /tmp/sim/package
+          test -f index.js
+          test -f cordis.patch.yml
+          test -f skills/prompt-forge/SKILL.md
+          node -e "import('./index.js').then(m => { if (typeof m.apply !== 'function') process.exit(1); console.log('OK：安装形态可加载') })"
+
+      - name: 打包内容不含测试与文档站
+        run: |
+          set -e
+          tar tzf /tmp/pkg/*.tgz | sed 's|^package/||' | grep -E '^(test/|docs/)' && {
+            echo "test/ 与 docs/ 不该进包"; exit 1
+          } || echo "OK：未包含 test/ 与 docs/"

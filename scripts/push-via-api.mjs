@@ -49,7 +49,19 @@ try {
   process.exit(1)
 }
 
-const branch = run('git', ['branch', '--show-current']) || 'main'
+const BASE = `/repos/${slug}`
+
+// 本地分支名和远程不一定一致：git init 的默认分支是 master，而仓库默认可能是 main。
+// 直接信本地分支名会推到一个**新分支**上——脚本报成功，实际 main 一个字没变，
+// 而你还以为发布完成了。所以以远程仓库的 default_branch 为准。
+let branch = run('git', ['branch', '--show-current']) || 'main'
+try {
+  const repo = ghApi('GET', '')
+  if (repo && repo.default_branch) branch = repo.default_branch
+} catch {
+  /* 查不到就退回本地分支名 */
+}
+
 const message =
   run('git', ['log', '-1', '--pretty=%B']) || 'chore: sync via push-via-api'
 
@@ -78,7 +90,6 @@ if (DRY) {
 
 // ---------- 定位远程 head ----------
 
-const BASE = `/repos/${slug}`
 let parentSha = null
 let baseTree = null
 
