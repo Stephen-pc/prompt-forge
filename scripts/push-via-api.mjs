@@ -107,10 +107,14 @@ try {
 const tree = []
 for (const f of files) {
   const buf = readFileSync(f)
-  const binary = /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|zip)$/i.test(f)
-  const blob = binary
-    ? ghApi('POST', '/git/blobs', { content: buf.toString('base64'), encoding: 'base64' })
-    : ghApi('POST', '/git/blobs', { content: buf.toString('utf8'), encoding: 'utf-8' })
+  // 一律 base64，不按扩展名猜二进制。
+  // 按扩展名判断会漏掉 .docx / .xlsx / .pptx 这类「扩展名像文本、内容其实是 zip」
+  // 的格式：它们会被当成 utf8 上传，字节被替换成 U+FFFD，文件从此打不开——
+  // 而推送照样打印「已推送」，只有事后逐个比对哈希才发现得了。
+  const blob = ghApi('POST', '/git/blobs', {
+    content: buf.toString('base64'),
+    encoding: 'base64'
+  })
 
   tree.push({ path: f.split('\\').join('/'), mode: '100644', type: 'blob', sha: blob.sha })
   process.stdout.write('.')
