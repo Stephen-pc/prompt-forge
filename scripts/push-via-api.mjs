@@ -82,6 +82,18 @@ if (!files.length) {
 
 console.log(`→ ${files.length} 个文件`)
 
+// 本脚本的 commit message 取自 `git log -1`。没先 commit 就跑，
+// 会把上一条 message 安在这次改动上，历史从此对不上号——而且推送照样报成功。
+if (!DRY && !process.argv.includes('--allow-dirty')) {
+  const dirty = run('git', ['status', '--porcelain']).trim()
+  if (dirty) {
+    console.error('✗ 工作区有未提交的改动，先 git commit 再推。')
+    console.error('  （commit message 取自 `git log -1`，不先提交就会用错说明）')
+    console.error('  确实要强推当前工作区，加 --allow-dirty。')
+    process.exit(1)
+  }
+}
+
 if (DRY) {
   for (const f of files) console.log('   ', f)
   console.log('dry-run，未做任何修改')
